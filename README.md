@@ -53,15 +53,17 @@ pyinstaller --noconsole --onefile --name ONGTransparency app_gui.py
 ## Fluxo da Regra de Negócios (Mermaid)
 
 ```mermaid
+%%{init: { "theme":"base", "securityLevel":"loose" }}%%
 flowchart TD
-  subgraph Configurações
-    CFG[Parâmetros: janela_data=±1 dia; desc_thresh=0.4]
+
+  subgraph CONFIG[Configurações]
+    CFG[Parâmetros: janela_data=1 dia; desc_thresh=0.4]
   end
 
-  A[Extrato Nubank CSV/OFX (sandbox)] --> B[Ingestão / Canonicalização<br/>(normaliza datas/valores/texto)]
+  A[Extrato Nubank CSVOFX (sandbox)] --> B[Ingestão  Canonicalização<br>(normaliza datasvalorestexto)]
   B --> C[Hash SHA-256 do CSV canônico]
-  C --> D{Âncora já existente?}
-  D -- "Não" --> E[Cria âncora {sha256, origem, timestamp}]
+  C --> D{Âncora já existente
+}  D -- "Não" --> E[Cria âncora {sha256, origem, timestamp}]
   D -- "Sim" --> H[Reutiliza âncora anterior]
   E --> F[(Fila de Âncoras pendentes)]
   H --> F
@@ -70,38 +72,31 @@ flowchart TD
   G --> G1[Empacotar transações de âncora]
   G1 --> G2[Calcular Merkle Root]
   G2 --> G3[Bloco: {prev_hash, merkle_root, ts, txs}]
-  G3 --> G4[(chain.jsonl / Ledger de blocos)]
+  G3 --> G4[(chain.jsonl  Ledger de blocos)]
 
-  B --> I[Gerar/obter Ledger (mock ou on-chain)]
+  B --> I[Gerarobter Ledger (mock ou on-chain)]
   I --> J{Para cada linha do extrato}
-  J --> K[Filtrar candidatos: mesma quantia<br/>e data dentro da janela]
-  CFG -.-> K
+  J --> K[Filtrar candidatos: mesma quantia<br>e data dentro da janela]
+  CONFIG -.-> K
   K --> L[Similaridade de descrição por tokens (Jaccard)]
-  CFG -.-> L
-  L --> M[score = 0.5·valor + 0.3·data + 0.2·descrição]
-  M --> N{score ≥ 0.85 e desc ≥ 0.4?}
-  N -- "Sim" --> O[status = matched<br/>vincular extrato ↔ tx_id_ledger]
-  N -- "Não" --> P{score ≥ 0.60?}
-  P -- "Sim" --> Q[status = manual_review<br/>enfileirar para revisão]
-  P -- "Não" --> R[status = unmatched<br/>abrir backlog/issue]
+  CONFIG -.-> L
+  L --> M[score = 0.5valor + 0.3data + 0.2descrição]
 
-  Q --> S[Revisão humana / confirmação]
+  M --> N{score  0.85 e desc  0.4
+}  N -- "Sim" --> O[status = matched<br>vincular extrato  tx_id_ledger]
+  N -- "Não" --> P{score  0.60
+}  P -- "Sim" --> Q[status = manual_review<br>enfileirar para revisão]
+  P -- "Não" --> R[status = unmatched<br>abrir backlogissue]
+
+  Q --> S[Revisão humana  confirmação]
   S --> O
-  O --> T[Ancorar evidência do lote/relatório (hash) no bloco]
+  O --> T[Ancorar evidência do loterelatório (hash) no bloco]
   T --> F
 
-  O --> U[Dashboards & Relatórios]
+  O --> U[Dashboards &amp; Relatórios]
   Q --> U
   R --> U
   U --> V[Taxa de conciliação, tabelas e gráficos]
-  U --> W[Exportar/Publish (opcional via CI)]
-
-  subgraph LGPD & Ética
-    X1[Minimizar dados on-chain:<br/>guardar apenas hashes/refs]
-    X2[Somente dados sintéticos / sem segredos]
-  end
-  X1 --- T
-  X2 --- A
 ```
 
 Versão PNG estática: veja `docs/fluxo_regra_negocio.png`.
