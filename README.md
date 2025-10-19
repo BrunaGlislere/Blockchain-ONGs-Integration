@@ -1,56 +1,56 @@
-﻿# Blockchain-ONGs-Integration-Sim
+# Blockchain-ONGs-Integration-Sim
 
-Pipeline de integraÃ§Ã£o â€œquase realâ€ para ONG: extrato (mock/CSV) â†’ ingestÃ£o/canonicalizaÃ§Ã£o â†’ conciliaÃ§Ã£o â†’ ancoragem on-chain simulada (Merkle + blocos) â†’ dashboards.
+Pipeline de integração “quase real” para ONG: extrato (mock/CSV) → ingestão/canonicalização → conciliação → ancoragem on-chain simulada (Merkle + blocos) → dashboards.
 
-Sem credenciais, sem dados sensÃ­veis. Simula coleta automatizada (emissÃ£o para `data/inbox/`), processamento e publicaÃ§Ã£o de Ã¢ncoras.
+Sem credenciais, sem dados sensíveis. Simula coleta automatizada (emissão para `data/inbox/`), processamento e publicação de âncoras.
 
 ## Executar
 
-1) Ativar venv (se necessÃ¡rio):
+1) Ativar venv (se necessário):
    `..\.venv\Scripts\Activate.ps1`
 
 2) Rodar pipeline completo:
    `python -m blockchain_ong_sim.cli run-all`
 
 Artefatos:
-- `data/inbox/` â€” extratos emitidos automaticamente
-- `data/processed/` â€” CSV canÃ´nicos
-- `data/anchors/` â€” Ã¢ncoras (hashes e metadados)
-- `data/ledger/` â€” ledger mock
-- `data/conciliation/` â€” conciliaÃ§Ãµes
-- `chain/chain.jsonl` â€” blockchain simulada (blocos com Merkle)
-- `out/` â€” imagens de dashboards (PNG)
+- `data/inbox/` — extratos emitidos automaticamente
+- `data/processed/` — CSV canônicos
+- `data/anchors/` — âncoras (hashes e metadados)
+- `data/ledger/` — ledger mock
+- `data/conciliation/` — conciliações
+- `chain/chain.jsonl` — blockchain simulada (blocos com Merkle)
+- `out/` — imagens de dashboards (PNG)
 
 ## Comandos
-- `emit-extract` â€” cria extrato CSV no inbox (mock/Nubank sandbox)
-- `ingest` â€” canonicaliza CSV â†’ `processed/` e gera Ã¢ncora â†’ `anchors/`
-- `reconcile` â€” concilia extrato canÃ´nico com ledger mock â†’ `conciliation/`
-- `anchor` â€” cria bloco com Merkle root e inclui Ã¢ncoras pendentes â†’ `chain.jsonl`
-- `render-dashboards` â€” gera prints (extrato + conciliaÃ§Ã£o)
-- `run-all` â€” executa tudo na ordem
+- `emit-extract` — cria extrato CSV no inbox (mock/Nubank sandbox)
+- `ingest` — canonicaliza CSV → `processed/` e gera âncora → `anchors/`
+- `reconcile` — concilia extrato canônico com ledger mock → `conciliation/`
+- `anchor` — cria bloco com Merkle root e inclui âncoras pendentes → `chain.jsonl`
+- `render-dashboards` — gera prints (extrato + conciliação)
+- `run-all` — executa tudo na ordem
 
-## ObservaÃ§Ãµes
+## Observações
 - Blockchain simulada: blocos com `prev_hash`, `merkle_root`, `block_hash`; sem rede P2P real.
-- Sem LGPD: dados sintÃ©ticos; nÃ£o publicar segredos.
+- Sem LGPD: dados sintéticos; não publicar segredos.
 
-## Interface grÃ¡fica (GUI)
-- ExecutÃ¡vel Windows: `dist/ONGTransparency.exe` (login: `UserAdmin1` / `Admin1234`).
-- Rodar da fonte: `python app_gui.py` (usa Tkinter). ApÃ³s login, a UI abre maximizada, com abas para visualizar Extrato, ConciliaÃ§Ã£o e RelatÃ³rio, alÃ©m de Ã¡rea Admin para gerenciar usuÃ¡rios.
+## Interface gráfica (GUI)
+- Executável Windows: `dist/ONGTransparency.exe` (login: `UserAdmin1` / `Admin1234`).
+- Rodar da fonte: `python app_gui.py` (usa Tkinter). Após login, a UI abre maximizada, com abas para visualizar Extrato, Conciliação e Relatório, além de área Admin para gerenciar usuários.
 
-## DependÃªncias
-Instale as dependÃªncias (modo desenvolvimento):
+## Dependências
+Instale as dependências (modo desenvolvimento):
 
 ```
 pip install -r requirements.txt
 ```
 
-Para empacotar o executÃ¡vel (opcional):
+Para empacotar o executável (opcional):
 
 ```
 pyinstaller --noconsole --onefile --name ONGTransparency app_gui.py
 ```
 
-## Fluxo da Regra de NegÃ³cios (Mermaid)
+## Fluxo da Regra de Negócios (Mermaid)
 
 ```mermaid
 flowchart TD
@@ -87,7 +87,4 @@ flowchart TD
     U --> V["Taxa de conciliacao, tabelas e graficos"]
 ```
 
-VersÃ£o PNG estÃ¡tica: veja `docs/fluxo_regra_negocio.png`.
-
-
-
+Versão PNG estática: veja `docs/fluxo_regra_negocio.png`.
