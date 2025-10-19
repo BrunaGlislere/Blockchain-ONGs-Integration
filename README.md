@@ -55,12 +55,11 @@ pyinstaller --noconsole --onefile --name ONGTransparency app_gui.py
 ```mermaid
 %%{init: { "theme":"base", "securityLevel":"loose" }}%%
 flowchart TD
-
   subgraph CONFIG[Configurações]
     CFG[Parâmetros: janela_data=1 dia; desc_thresh=0.4]
   end
 
-  A[Extrato Nubank CSVOFX (sandbox)] --> B[Ingestão  Canonicalização<br/>(normaliza datasvalorestexto)]
+  A[Extrato Nubank CSVOFX (sandbox)] --> B[Ingestão / Canonicalização<br/>(normaliza datas/valores/texto)]
   B --> C[Hash SHA-256 do CSV canônico]
   C --> D{Âncora já existente}
   D -- "Não" --> E[Cria âncora {sha256, origem, timestamp}]
@@ -72,9 +71,9 @@ flowchart TD
   G --> G1[Empacotar transações de âncora]
   G1 --> G2[Calcular Merkle Root]
   G2 --> G3[Bloco: {prev_hash, merkle_root, ts, txs}]
-  G3 --> G4[(chain.jsonl  Ledger de blocos)]
+  G3 --> G4[(chain.jsonl / Ledger de blocos)]
 
-  B --> I[Gerarobter Ledger (mock ou on-chain)]
+  B --> I[Gerar/obter Ledger (mock ou on-chain)]
   I --> J{Para cada linha do extrato}
   J --> K[Filtrar candidatos: mesma quantia<br/>e data dentro da janela]
   CONFIG -.-> K
@@ -83,14 +82,14 @@ flowchart TD
   L --> M[score = 0.5valor + 0.3data + 0.2descrição]
 
   M --> N{score >= 0.85 e desc >= 0.4}
-  N -- "Sim" --> O[status = matched<br/>vincular extrato  tx_id_ledger]
+  N -- "Sim" --> O[status = matched<br/>vincular extrato ↔ tx_id_ledger]
   N -- "Não" --> P{score >= 0.60}
   P -- "Sim" --> Q[status = manual_review<br/>enfileirar para revisão]
-  P -- "Não" --> R[status = unmatched<br/>abrir backlogissue]
+  P -- "Não" --> R[status = unmatched<br/>abrir backlog/issue]
 
-  Q --> S[Revisão humana  confirmação]
+  Q --> S[Revisão humana / confirmação]
   S --> O
-  O --> T[Ancorar evidência do loterelatório (hash) no bloco]
+  O --> T[Ancorar evidência do lote/relatório (hash) no bloco]
   T --> F
 
   O --> U[Dashboards &amp; Relatórios]
@@ -100,4 +99,5 @@ flowchart TD
 ```
 
 VersÃ£o PNG estÃ¡tica: veja `docs/fluxo_regra_negocio.png`.
+
 
