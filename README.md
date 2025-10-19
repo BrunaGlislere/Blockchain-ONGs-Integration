@@ -53,51 +53,41 @@ pyinstaller --noconsole --onefile --name ONGTransparency app_gui.py
 ## Fluxo da Regra de NegÃ³cios (Mermaid)
 
 ```mermaid
-%%{init: { "theme":"base", "securityLevel":"loose" }}%%
 flowchart TD
-  subgraph CONFIG[Configurações]
-    CFG[Parâmetros: janela_data=1 dia; desc_thresh=0.4]
+ subgraph CONFIG["Configuracoes"]
+        CFG["Parametros: janela_data=+- 1 dia; desc_thresh=0.4"]
   end
-
-  A[Extrato Nubank CSVOFX (sandbox)] --> B[Ingestão / Canonicalização<br/>(normaliza datas/valores/texto)]
-  B --> C[Hash SHA-256 do CSV canônico]
-  C --> D{Âncora já existente}
-  D -- "Não" --> E[Cria âncora {sha256, origem, timestamp}]
-  D -- "Sim" --> H[Reutiliza âncora anterior]
-  E --> F[(Fila de Âncoras pendentes)]
-  H --> F
-
-  F --> G[Mineração de bloco]
-  G --> G1[Empacotar transações de âncora]
-  G1 --> G2[Calcular Merkle Root]
-  G2 --> G3[Bloco: {prev_hash, merkle_root, ts, txs}]
-  G3 --> G4[(chain.jsonl / Ledger de blocos)]
-
-  B --> I[Gerar/obter Ledger (mock ou on-chain)]
-  I --> J{Para cada linha do extrato}
-  J --> K[Filtrar candidatos: mesma quantia<br/>e data dentro da janela]
-  CONFIG -.-> K
-  K --> L[Similaridade de descrição por tokens (Jaccard)]
-  CONFIG -.-> L
-  L --> M[score = 0.5valor + 0.3data + 0.2descrição]
-
-  M --> N{score >= 0.85 e desc >= 0.4}
-  N -- "Sim" --> O[status = matched<br/>vincular extrato ↔ tx_id_ledger]
-  N -- "Não" --> P{score >= 0.60}
-  P -- "Sim" --> Q[status = manual_review<br/>enfileirar para revisão]
-  P -- "Não" --> R[status = unmatched<br/>abrir backlog/issue]
-
-  Q --> S[Revisão humana / confirmação]
-  S --> O
-  O --> T[Ancorar evidência do lote/relatório (hash) no bloco]
-  T --> F
-
-  O --> U[Dashboards &amp; Relatórios]
-  Q --> U
-  R --> U
-  U --> V[Taxa de conciliação, tabelas e gráficos]
+    A["Extrato Nubank CSVOFX (sandbox)"] --> B["Ingestao  Canonicalizacao (normaliza datasvalorestexto)"]
+    B --> C["Hash SHA-256 do CSV canonico"] & I["Gerarobter Ledger (mock ou on-chain)"]
+    C --> D{"Ancora ja existente"}
+    D -- Nao --> E["Cria ancora {sha256, origem, timestamp}"]
+    D -- Sim --> H["Reutiliza ancora anterior"]
+    E --> F[("Fila de Ancoras pendentes")]
+    H --> F
+    F --> G["Mineracao de bloco"]
+    G --> G1["Empacotar transacoes de ancora"]
+    G1 --> G2["Calcular Merkle Root"]
+    G2 --> G3["Bloco: {prev_hash, merkle_root, ts, txs}"]
+    G3 --> G4[("chain.jsonl  Ledger de blocos")]
+    I --> J{"Para cada linha do extrato"}
+    J --> K["Filtrar candidatos: mesma quantia e data dentro da janela"]
+    CONFIG -.-> K & L["Similaridade de descricao por tokens (Jaccard)"]
+    K --> L
+    L --> M["score = 0.5*valor + 0.3*data + 0.2*descricao"]
+    M --> N{"score >= 0.85 e desc >= 0.4"}
+    N -- Sim --> O["status = matched (vincular extrato &lt;-&gt; tx_id_ledger)"]
+    N -- Nao --> P{"score >= 0.60"}
+    P -- Sim --> Q["status = manual_review (enfileirar para revisao)"]
+    P -- Nao --> R["status = unmatched (abrir backlogissue)"]
+    Q --> S["Revisao humana  confirmacao"] & U["Dashboards & Relatorios"]
+    S --> O
+    O --> T["Ancorar evidencia do loterelatorio (hash) no bloco"] & U
+    T --> F
+    R --> U
+    U --> V["Taxa de conciliacao, tabelas e graficos"]
 ```
 
 VersÃ£o PNG estÃ¡tica: veja `docs/fluxo_regra_negocio.png`.
+
 
 
