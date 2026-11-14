@@ -3,15 +3,14 @@ from tkinter import messagebox
 from tkinter import ttk, filedialog
 import shutil
 import json
-import webbrowser
+from datetime import datetime
 from pathlib import Path
 
+import pandas as pd
 from PIL import Image, ImageTk
 
 from blockchain_ong_sim.cli import (
-    ensure_dirs, emit_extract, canonicalize, build_ledger_from_extract,
-    reconcile, produce_block, render_dashboards, generate_report_html,
-    generate_report_pdf, INBOX, PROCESSED, CONCIL, CHAIN, OUT
+    CHAIN_FILE, DATA, OUT, evidence_path, latest_reconciled_batch, read_blocks, run_all, verify_chain,
 )
 
 APP_TITLE = "ONG Transparency – Local"
@@ -20,19 +19,6 @@ DARK_BG = '#1f2127'
 DARK_CARD = '#2a2d34'
 DARK_FG = '#E6E6E6'
 ACCENT = '#3B82F6'
-
-
-def run_pipeline_once():
-    ensure_dirs()
-    src = emit_extract()
-    canon = canonicalize(src)
-    ledger = build_ledger_from_extract(canon)
-    conc = reconcile(canon, ledger)
-    chain_file = produce_block()
-    render_dashboards(canon, conc)
-    html = generate_report_html(canon, conc, chain_file)
-    pdf = generate_report_pdf(canon, conc, chain_file)
-    return html, pdf
 
 
 class App(tk.Tk):
@@ -45,6 +31,7 @@ class App(tk.Tk):
         self.configure(bg=DARK_BG)
         self._in_main = False
         self._images_cache = {}
+        self._resize_job = None
 
         # ttk dark theme
         style = ttk.Style(self)
@@ -111,9 +98,9 @@ class App(tk.Tk):
         top = tk.Frame(self, padx=12, pady=8, bg=DARK_CARD)
         top.pack(fill="x")
         tk.Label(top, text="Sistema Local de Transparência", font=("Segoe UI", 13, "bold"), fg=DARK_FG, bg=DARK_CARD).pack(side="left")
-        ttk.Button(top, text="Logout", command=self._logout).pack(side="right", padx=(8,0))
+        ttk.Button(top, text="Encerrar sessão", command=self._logout).pack(side="right", padx=(8,0))
         ttk.Button(top, text="Exportar arquivos", command=self._export_files).pack(side="right", padx=(8,0))
-        ttk.Button(top, text="Executar pipeline", command=self._run_all).pack(side="right", padx=(8,0))
+        ttk.Button(top, text="Executar demonstração", command=self._run_all).pack(side="right", padx=(8,0))
         ttk.Button(top, text="Atualizar visualização", command=self._refresh_views).pack(side="right")
 
         # Tabs
@@ -140,13 +127,16 @@ class App(tk.Tk):
         # Relatório: resumo + blocos
         rep_top = tk.Frame(self.tab_rep, bg=DARK_BG)
         rep_top.pack(fill="x")
-        self._sum_lbl = tk.Label(rep_top, text="Resumo: —", fg=DARK_FG, bg=DARK_BG)
+        ttk.Button(rep_top, text="Verificar integridade", command=self._verify_chain).pack(side='right')
+        self._sum_lbl = tk.Label(rep_top, text="Execute a demonstração para gerar um lote.", fg=DARK_FG, bg=DARK_BG)
         self._sum_lbl.pack(anchor="w")
-        cols = ("altura","timestamp","txs","merkle_root","block_hash")
+        self._integrity_lbl = tk.Label(rep_top, fg=DARK_FG, bg=DARK_BG)
+        self._integrity_lbl.pack(anchor='w')
+        cols = ("Altura", "Data e hora (UTC)", "Âncoras", "Raiz de Merkle", "Hash do bloco")
         self._tree = ttk.Treeview(self.tab_rep, columns=cols, show="headings")
-        for c in cols:
-            self._tree.heading(c, text=c)
-            self._tree.column(c, width=120 if c!="merkle_root" and c!="block_hash" else 220, stretch=True)
+        for column, width in zip(cols, (55, 155, 65, 330, 330)):
+            self._tree.heading(column, text=column)
+            self._tree.column(column, width=width, stretch=True)
         self._tree.pack(expand=True, fill="both", pady=(6,0))
 
         # Admin tab (user management)
@@ -171,64 +161,70 @@ class App(tk.Tk):
 
     def _run_all(self):
         try:
-            html, pdf = run_pipeline_once()
-            messagebox.showinfo("Concluído", "Pipeline concluído e visualizações atualizadas dentro do sistema.")
+            run_all()
             self._refresh_views()
+            self._verify_chain()
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao executar pipeline: {e}")
 
     def _on_configure(self, event=None):
-        # Avoid callbacks after logout
-        if not self._in_main:
-            return
-        self._refresh_views()
+        if self._in_main and event.widget is self:
+            if self._resize_job is not None:
+                self.after_cancel(self._resize_job)
+            self._resize_job = self.after(120, self._resize_images)
+
+    def _resize_images(self):
+        self._resize_job = None
+        for name, label in (('extrato', self._img_extrato_lbl), ('conciliacao', self._img_conc_lbl)):
+            path = OUT / f'{name}_dashboard.png'
+            if not path.exists():
+                label.configure(text='Clique em Executar demonstração para começar.', fg=DARK_FG)
+                continue
+            with Image.open(path) as source:
+                img = source.copy()
+            width = max(1, self.winfo_width() - 40)
+            height = max(1, self.winfo_height() - 145)
+            img.thumbnail((width, height), Image.Resampling.LANCZOS)
+            self._images_cache[name] = ImageTk.PhotoImage(img)
+            label.configure(text='', image=self._images_cache[name])
 
     def _refresh_views(self):
         if not self._in_main:
             return
-        # Load and show images if exist
+        self._integrity_lbl.config(text='')
         try:
-            extrato_png = OUT / 'extrato_dashboard.png'
-            if extrato_png.exists() and hasattr(self, '_img_extrato_lbl') and self._img_extrato_lbl.winfo_exists():
-                img = Image.open(extrato_png)
-                target_w = max(1200, min(1800, (self.winfo_width() or 1200) - 60))
-                img = img.resize((int(target_w), int(img.height * target_w / img.width)), Image.LANCZOS)
-                self._images_cache['extrato'] = ImageTk.PhotoImage(img)
-                self._img_extrato_lbl.configure(image=self._images_cache['extrato'])
-            conc_png = OUT / 'conciliacao_dashboard.png'
-            if conc_png.exists() and hasattr(self, '_img_conc_lbl') and self._img_conc_lbl.winfo_exists():
-                img2 = Image.open(conc_png)
-                target_w = max(1200, min(1800, (self.winfo_width() or 1200) - 60))
-                img2 = img2.resize((int(target_w), int(img2.height * target_w / img2.width)), Image.LANCZOS)
-                self._images_cache['conc'] = ImageTk.PhotoImage(img2)
-                self._img_conc_lbl.configure(image=self._images_cache['conc'])
+            self._resize_images()
         except Exception as e:
             messagebox.showwarning("Visualização", f"Falha ao carregar imagens: {e}")
 
         # Summary and blocks
         try:
-            # Load latest conciliation
-            concs = sorted(CONCIL.glob('*.conciliation.csv'))
-            if concs:
-                import pandas as pd
-                dfc = pd.read_csv(concs[-1])
-                matched = (dfc['status']=='matched').sum(); manual = (dfc['status']=='manual_review').sum(); unmatched = (dfc['status']=='unmatched').sum(); total = len(dfc)
-                pct = (matched/total*100) if total else 0
-                self._sum_lbl.config(text=f"Resumo: {matched}/{total} matched ({pct:.1f}%), {manual} revisão, {unmatched} sem correspondência.")
-            # Blocks
-            for i in self._tree.get_children():
-                self._tree.delete(i)
-            chain_file = CHAIN / 'chain.jsonl'
-            if chain_file.exists():
-                import json
-                blocks=[]
-                with chain_file.open('r', encoding='utf-8') as f:
-                    for line in f:
-                        blocks.append(json.loads(line))
-                for b in blocks[-15:]:
+            batch = latest_reconciled_batch()
+            if batch:
+                dfc = pd.read_csv(batch[1])
+                counts = dfc['status'].value_counts()
+                matched = counts.get('matched', 0)
+                manual = counts.get('manual_review', 0)
+                unmatched = counts.get('unmatched', 0)
+                total = len(dfc)
+                pct = f'{(matched / total * 100) if total else 0:.1f}'.replace('.', ',')
+                self._sum_lbl.config(text=f"{matched}/{total} conciliados ({pct}%), {manual} em revisão, {unmatched} sem correspondência.")
+            self._tree.delete(*self._tree.get_children())
+            if CHAIN_FILE.exists():
+                for b in read_blocks(CHAIN_FILE)[-15:]:
                     self._tree.insert('', 'end', values=(b.get('height'), b.get('timestamp'), b.get('tx_count'), b.get('merkle_root'), b.get('block_hash')))
         except Exception as e:
             messagebox.showwarning("Relatório", f"Falha ao carregar relatório: {e}")
+
+    def _verify_chain(self):
+        try:
+            blocks, anchors = verify_chain()
+            message = f'Integridade verificada · {blocks} bloco(s), {anchors} âncora(s).'
+        except FileNotFoundError:
+            message = 'Execute a demonstração para criar a cadeia.'
+        except (ValueError, OSError, KeyError, TypeError) as error:
+            message = f'Falha de integridade · {error}'
+        self._integrity_lbl.config(text=message)
 
     def _export_files(self):
         # Seleciona pasta e copia artefatos principais
@@ -236,7 +232,7 @@ class App(tk.Tk):
         if not dest_base:
             return
         try:
-            ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+            ts = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
             dest = Path(dest_base) / f'export_{ts}'
             dest.mkdir(parents=True, exist_ok=True)
             # copia dashboards e relatórios
@@ -245,15 +241,17 @@ class App(tk.Tk):
                 if src.exists():
                     shutil.copy2(src, dest / name)
             # copia dados mais recentes
-            canons = sorted(PROCESSED.glob('*.canonical.csv'))
-            concs = sorted(CONCIL.glob('*.conciliation.csv'))
-            if canons:
-                shutil.copy2(canons[-1], dest / canons[-1].name)
-            if concs:
-                shutil.copy2(concs[-1], dest / concs[-1].name)
-            chain_file = CHAIN / 'chain.jsonl'
-            if chain_file.exists():
-                shutil.copy2(chain_file, dest / chain_file.name)
+            if CHAIN_FILE.exists():
+                chain_copy = dest / 'chain' / CHAIN_FILE.name
+                chain_copy.parent.mkdir()
+                shutil.copy2(CHAIN_FILE, chain_copy)
+                for block in read_blocks(chain_copy):
+                    for anchor in block['txs']:
+                        path = evidence_path(anchor)
+                        target = dest / 'data' / path
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(DATA / path, target)
+                verify_chain(chain_copy)
             messagebox.showinfo("Exportação", f"Arquivos exportados para: {dest}")
         except Exception as e:
             messagebox.showerror("Exportação", f"Falha ao exportar: {e}")
@@ -284,6 +282,9 @@ class App(tk.Tk):
         except Exception:
             pass
         self._in_main = False
+        if self._resize_job is not None:
+            self.after_cancel(self._resize_job)
+            self._resize_job = None
         self.current_user = None
         self.current_role = None
         # Clear cached images
@@ -374,4 +375,11 @@ class App(tk.Tk):
 
 
 if __name__ == "__main__":
-    App().mainloop()
+    import sys
+
+    if '--legacy' in sys.argv:
+        App().mainloop()
+    else:
+        from desktop import AuditDesk
+
+        AuditDesk().mainloop()

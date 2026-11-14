@@ -1,6 +1,9 @@
-# Python / venv (repo is nested; do not include outer venv)
+# Python
 __pycache__/
 *.pyc
+.venv/
+.tools/
+entrega/
 
 # App build artifacts
 dist/
@@ -11,6 +14,7 @@ build/
 data/
 out/
 chain/
+ethereum-state/
 
 # OS
 .DS_Store

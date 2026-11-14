@@ -1,90 +1,65 @@
-# Blockchain-ONGs-Integration-Sim
+# Transparência de ONGs com Ethereum local
 
-Pipeline de integração “quase real” para ONG: extrato (mock/CSV) → ingestão/canonicalização → conciliação → ancoragem on-chain simulada (Merkle + blocos) → dashboards.
+Aplicativo de prestação de contas desenvolvido para a Atividade Extensionista III de Engenharia de Software. O sistema concilia um extrato fictício com um ledger de demonstração, calcula o SHA-256 dos dois CSVs e publica a raiz de Merkle do lote no contrato EvidenceRegistry, executado no nó Ethereum Anvil.
 
-Sem credenciais, sem dados sensíveis. Simula coleta automatizada (emissão para `data/inbox/`), processamento e publicação de âncoras.
+## Executar no Windows
 
-## Executar
+Abra o PowerShell na pasta do repositório. Use Python 3.12 com Tkinter e Node.js com npm para instalar o Anvil.
 
-1) Ativar venv (se necessário):
-   `..\.venv\Scripts\Activate.ps1`
+~~~powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\scripts\install-anvil.ps1
+.\.venv\Scripts\python.exe app_gui.py
+~~~
 
-2) Rodar pipeline completo:
-   `python -m blockchain_ong_sim.cli run-all`
+O instalador obtém o Anvil 1.7.1 para Windows x64. Também é possível apontar a variável ONG_ANVIL para um Anvil já instalado ou usar o binário no PATH.
 
-Artefatos:
-- `data/inbox/` — extratos emitidos automaticamente
-- `data/processed/` — CSV canônicos
-- `data/anchors/` — âncoras (hashes e metadados)
-- `data/ledger/` — ledger mock
-- `data/conciliation/` — conciliações
-- `chain/chain.jsonl` — blockchain simulada (blocos com Merkle)
-- `out/` — imagens de dashboards (PNG)
+Na interface, clique em **Executar demonstração** e examine as abas **Extrato**, **Conciliação** e **Registro Ethereum**. Use **Verificar arquivos e recibo** para recalcular a raiz e consultar a transação no nó. **Exportar evidências** salva os dois CSVs, o manifesto e uma cópia do recibo. A verificação pelo nó depende do estado que contém essa transação.
 
-## Comandos
-- `emit-extract` — cria extrato CSV no inbox (mock/Nubank sandbox)
-- `ingest` — canonicaliza CSV → `processed/` e gera âncora → `anchors/`
-- `reconcile` — concilia extrato canônico com ledger mock → `conciliation/`
-- `anchor` — cria bloco com Merkle root e inclui âncoras pendentes → `chain.jsonl`
-- `render-dashboards` — gera prints (extrato + conciliação)
-- `run-all` — executa tudo na ordem
+Para reproduzir pelo terminal:
 
-## Observações
-- Blockchain simulada: blocos com `prev_hash`, `merkle_root`, `block_hash`; sem rede P2P real.
-- Sem LGPD: dados sintéticos; não publicar segredos.
+~~~powershell
+.\.venv\Scripts\python.exe -m blockchain_ong_sim.cli ethereum-demo
+.\.venv\Scripts\python.exe -m blockchain_ong_sim.cli ethereum-verify
+~~~
 
-## Interface gráfica (GUI)
-- Executável Windows: `dist/ONGTransparency.exe` (login: `UserAdmin1` / `Admin1234`).
-- Rodar da fonte: `python app_gui.py` (usa Tkinter). Após login, a UI abre maximizada, com abas para visualizar Extrato, Conciliação e Relatório, além de área Admin para gerenciar usuários.
+Cada lote contém 14 lançamentos fictícios. São esperados 10 conciliados (71,4%), dois em revisão e dois sem correspondência. A primeira execução implanta o contrato e publica uma transação de ancoragem. O recibo exibe o hash, o bloco, o nonce e o consumo de gás. A mesma raiz recupera o recibo anterior.
 
-## Dependências
-Instale as dependências (modo desenvolvimento):
+## Arquitetura
 
-```
-pip install -r requirements.txt
-```
+O programa inicia o Anvil sob demanda, restrito a 127.0.0.1, com Chain ID 31337 e contas de desenvolvimento. O acesso é feito por JSON-RPC. O contrato aceita somente o publicador que o implantou, recusa a raiz zero e impede raízes repetidas. Os CSVs ficam fora da cadeia. A leitura de confirmação verifica o estado do contrato, o evento, o recibo e a inclusão no bloco. O estado da rede fica em ethereum-state/. Para verificar os recibos no futuro, preserve essa pasta e os arquivos de evidência.
 
-Para empacotar o executável (opcional):
+O código está em contracts/EvidenceRegistry.sol. O bytecode e a ABI são reproduzíveis com Solidity 0.8.30 e scripts/compile-contract.cjs, com o pacote solc disponível para o Node. O nó único e seu estado restaurável servem à validação técnica. Uma implantação real exigiria gestão de chaves e uma rede com governança definida.
 
-```
-pyinstaller --noconsole --onefile --name ONGTransparency app_gui.py
-```
+## Conciliação e simulador anterior
 
-## Fluxo da Regra de Negócios (Mermaid)
+| Situação | Regra |
+| --- | --- |
+| Conciliado | Mesmo valor, data dentro de um dia e candidato único com similaridade de descrição suficiente. |
+| Em revisão | Similaridade insuficiente, empate ou mesmo ID candidato para vários lançamentos. |
+| Sem correspondência | Ausência de candidato de mesmo valor dentro da janela. |
 
-```mermaid
-flowchart TD
- subgraph CONFIG["Configuracoes"]
-        CFG["Parametros: janela_data=+- 1 dia; desc_thresh=0.4"]
-  end
-    A["Extrato Nubank CSVOFX (sandbox)"] --> B["Ingestao  Canonicalizacao (normaliza datasvalorestexto)"]
-    B --> C["Hash SHA-256 do CSV canonico"] & I["Gerarobter Ledger (mock ou on-chain)"]
-    C --> D{"Ancora ja existente"}
-    D -- Nao --> E["Cria ancora {sha256, origem, timestamp}"]
-    D -- Sim --> H["Reutiliza ancora anterior"]
-    E --> F[("Fila de Ancoras pendentes")]
-    H --> F
-    F --> G["Mineracao de bloco"]
-    G --> G1["Empacotar transacoes de ancora"]
-    G1 --> G2["Calcular Merkle Root"]
-    G2 --> G3["Bloco: {prev_hash, merkle_root, ts, txs}"]
-    G3 --> G4[("chain.jsonl  Ledger de blocos")]
-    I --> J{"Para cada linha do extrato"}
-    J --> K["Filtrar candidatos: mesma quantia e data dentro da janela"]
-    CONFIG -.-> K & L["Similaridade de descricao por tokens (Jaccard)"]
-    K --> L
-    L --> M["score = 0.5*valor + 0.3*data + 0.2*descricao"]
-    M --> N{"score >= 0.85 e desc >= 0.4"}
-    N -- Sim --> O["status = matched (vincular extrato &lt;-&gt; tx_id_ledger)"]
-    N -- Nao --> P{"score >= 0.60"}
-    P -- Sim --> Q["status = manual_review (enfileirar para revisao)"]
-    P -- Nao --> R["status = unmatched (abrir backlogissue)"]
-    Q --> S["Revisao humana  confirmacao"] & U["Dashboards & Relatorios"]
-    S --> O
-    O --> T["Ancorar evidencia do loterelatorio (hash) no bloco"] & U
-    T --> F
-    R --> U
-    U --> V["Taxa de conciliacao, tabelas e graficos"]
-```
+O extrato e o ledger do cenário padrão são gerados em conjunto para reproduzir o resultado. Os comandos abaixo aceitam uma amostra independente, no formato CSV UTF-8 com datas AAAA-MM-DD e ponto decimal. Campos do extrato: date, description, amount, balance, category e counterparty. Campos do ledger: tx_id, date, amount, description e counterparty. Use tx_id único.
 
-Versão PNG estática: veja `docs/fluxo_regra_negocio.png`.
+~~~powershell
+.\.venv\Scripts\python.exe -m blockchain_ong_sim.cli ingest .\meu_lote.csv
+.\.venv\Scripts\python.exe -m blockchain_ong_sim.cli reconcile --ledger .\meu_ledger.csv
+~~~
+
+Os comandos run-all, anchor, verify e report pertencem à cadeia didática em JSONL, disponível também em app_gui.py --legacy. A versão atual aceita o formato CSV do simulador. A compatibilidade com OFX e com exportações do Nubank requer validação específica.
+
+## Fluxo técnico
+
+~~~mermaid
+flowchart LR
+    A["Extrato fictício"] --> B["Normalizar CSV"]
+    B --> C["Conciliar com ledger"]
+    B --> D["SHA-256 do extrato"]
+    C --> E["SHA-256 da conciliação"]
+    D --> F["Raiz de Merkle"]
+    E --> F
+    F --> G["Contrato EvidenceRegistry"]
+    G --> H["Evento e recibo Ethereum"]
+    H --> I["Verificar lote"]
+~~~

@@ -1,0 +1,96 @@
+{
+  "compiler": "0.8.30+commit.73712a01.Emscripten.clang",
+  "abi": [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "AlreadyRegistered",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidDigest",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "Unauthorized",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "root",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "publisher",
+          "type": "address"
+        }
+      ],
+      "name": "EvidenceAnchored",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "root",
+          "type": "bytes32"
+        }
+      ],
+      "name": "anchor",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "publisher",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "registered",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x6080604052348015600e575f5ffd5b505f80546001600160a01b031916331790556101c48061002d5f395ff3fe608060405234801561000f575f5ffd5b506004361061003f575f3560e01c80635524d548146100435780638c72c54e1461007a578063eecdf927146100a4575b5f5ffd5b610065610051366004610177565b60016020525f908152604090205460ff1681565b60405190151581526020015b60405180910390f35b5f5461008c906001600160a01b031681565b6040516001600160a01b039091168152602001610071565b6100b76100b2366004610177565b6100b9565b005b5f546001600160a01b031633146100e2576040516282b42960e81b815260040160405180910390fd5b8061010057604051633e78eb9360e01b815260040160405180910390fd5b5f8181526001602052604090205460ff161561012f57604051630ea075bf60e21b815260040160405180910390fd5b5f818152600160208190526040808320805460ff191690921790915551339183917fa05c717024b095e2b8b8a4887ed619583831f98a0be1538e68d3bc0fef3b16009190a350565b5f60208284031215610187575f5ffd5b503591905056fea2646970667358221220a87273c05e224c53146ce45c213a9ff6e1884d4e54e9677473623bfea8c507c264736f6c634300081e0033",
+  "deployedBytecode": "0x608060405234801561000f575f5ffd5b506004361061003f575f3560e01c80635524d548146100435780638c72c54e1461007a578063eecdf927146100a4575b5f5ffd5b610065610051366004610177565b60016020525f908152604090205460ff1681565b60405190151581526020015b60405180910390f35b5f5461008c906001600160a01b031681565b6040516001600160a01b039091168152602001610071565b6100b76100b2366004610177565b6100b9565b005b5f546001600160a01b031633146100e2576040516282b42960e81b815260040160405180910390fd5b8061010057604051633e78eb9360e01b815260040160405180910390fd5b5f8181526001602052604090205460ff161561012f57604051630ea075bf60e21b815260040160405180910390fd5b5f818152600160208190526040808320805460ff191690921790915551339183917fa05c717024b095e2b8b8a4887ed619583831f98a0be1538e68d3bc0fef3b16009190a350565b5f60208284031215610187575f5ffd5b503591905056fea2646970667358221220a87273c05e224c53146ce45c213a9ff6e1884d4e54e9677473623bfea8c507c264736f6c634300081e0033",
+  "methods": {
+    "anchor(bytes32)": "eecdf927",
+    "publisher()": "8c72c54e",
+    "registered(bytes32)": "5524d548"
+  }
+}
